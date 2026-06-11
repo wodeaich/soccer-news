@@ -1,0 +1,29 @@
+{
+  "name": "longtail-painpoint-ingestion",
+  "version": "0.1.0",
+  "description": "Long-tail pain point data ingestion pipeline: Google Suggest -> Reddit/Quora scraping -> clean -> MongoDB",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "lint": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.0",
+    "mongoose": "^8.4.0",
+    "puppeteer": "^22.0.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  }
+}

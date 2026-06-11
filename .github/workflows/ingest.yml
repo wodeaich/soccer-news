@@ -1,0 +1,39 @@
+name: Pain Point Ingestion
+
+on:
+  schedule:
+    # 每天 UTC 02:00 自动抓取一次（北京时间 10:00）
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      seed_keywords:
+        description: '种子关键词（逗号分隔），留空则用仓库 Variables 里的默认值'
+        required: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Run ingestion pipeline
+        run: npm start
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          PROXY_URL: ${{ secrets.PROXY_URL }}
+          SEED_KEYWORDS: ${{ github.event.inputs.seed_keywords || vars.SEED_KEYWORDS }}
+          SUBREDDITS: ${{ vars.SUBREDDITS }}
+          MAX_POSTS_PER_KEYWORD: ${{ vars.MAX_POSTS_PER_KEYWORD }}
+          MAX_SUGGESTIONS_PER_SEED: ${{ vars.MAX_SUGGESTIONS_PER_SEED }}
