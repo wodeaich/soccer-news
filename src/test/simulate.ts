@@ -6,12 +6,14 @@
  * 运行：MOCK_LLM=true npm run test:sim
  */
 process.env.MOCK_LLM = 'true';
+process.env.MOCK_SERP = 'true';
 
 import assert from 'assert';
 import fs from 'fs';
 import { cleanRawText } from '../utils/clean';
 import { clusterKeywords, tokenize, jaccard, SourcePost } from '../analysis/heat';
 import { scoreWithLlm } from '../analysis/deepseek';
+import { computeRankSpeed, getRankSpeedScores } from '../analysis/serp';
 import { rankFinal } from '../analysis/rank';
 
 function post(p: Partial<SourcePost> & { keyword: string; url: string }): SourcePost {
@@ -69,11 +71,33 @@ async function main() {
   assert(sorted[0].keyword === 'life insurance for seniors over 70', '高赞高评跨社区的簇热度应排第一');
   console.log('✅ 3. heatScore: 热度排序符合预期（跨社区高互动簇居首）');
 
-  // ---------- 4. LLM 打分（mock）+ 最终排序 ----------
+  // ---------- 4. 排名速度分测试 ----------
+  // 4a. SERP 实测打分：弱竞争长尾疑问词 vs 巨头封锁短头部词
+  const easy = computeRankSpeed(
+    'how to get life insurance for seniors over 70',
+    { allintitleCount: 8, weakDomainCount: 4, bigDomainCount: 2 },
+    { postCount: 3, totalComments: 60 },
+  );
+  const blocked = computeRankSpeed('life insurance', { allintitleCount: 500_000, weakDomainCount: 0, bigDomainCount: 9 });
+  assert(easy.score > 7, `弱竞争长尾词排名速度分应高，实际 ${easy.score}`);
+  assert(blocked.excluded, '巨头封锁（前10占8席以上）的词应被标记剔除');
+
+  // 4b. 降级链：无 SERP 数据时仅用免费信号，分数仍可计算且不剔除
+  const degraded = computeRankSpeed('how much does burial insurance cost', null);
+  assert(degraded.signals === null && degraded.score > 0 && !degraded.excluded, '无 Key 降级模式应正常打分');
+
+  // 4c. 批量接口（MOCK_SERP）：返回数量与候选一致
+  const rankSpeeds = await getRankSpeedScores(
+    sorted.map((c) => ({ keyword: c.keyword, postCount: c.postCount, totalComments: c.totalComments })),
+  );
+  assert(rankSpeeds.size === sorted.length, '每个候选簇都应有排名速度分');
+  console.log(`✅ 4. rankSpeed: 弱竞争=${easy.score} 降级=${degraded.score} 封锁剔除正确`);
+
+  // ---------- 5. LLM 打分（mock）+ 最终排序 ----------
   const llmScores = await scoreWithLlm(sorted);
   assert(llmScores.length === sorted.length, '每个簇都应有 LLM 评分');
 
-  const top = rankFinal(sorted, llmScores);
+  const top = rankFinal(sorted, llmScores, rankSpeeds);
   assert(top.length <= 10, `最终输出应 <= 10 个，实际 ${top.length}`);
   for (let i = 1; i < top.length; i++) {
     assert(top[i - 1].final_score >= top[i].final_score, '最终结果应按总分降序');
@@ -84,11 +108,15 @@ async function main() {
   if (infoCluster) {
     assert(infoCluster.rank > 1, '信息型低意图关键词不应排第一');
   }
-  console.log(`✅ 4. rankFinal: 输出 ${top.length} 个痛点，降序正确，Top1 = "${top[0].keyword}"`);
+  assert(
+    top.every((t) => typeof t.rank_speed_score === 'number'),
+    '最终结果应包含排名速度分',
+  );
+  console.log(`✅ 5. rankFinal: 输出 ${top.length} 个痛点，降序正确，Top1 = "${top[0].keyword}"`);
 
-  // ---------- 5. 输出文件 ----------
+  // ---------- 6. 输出文件 ----------
   fs.writeFileSync('top10_painpoints.sample.json', JSON.stringify(top, null, 2));
-  console.log('✅ 5. 已写出 top10_painpoints.sample.json（模拟结果样例）');
+  console.log('✅ 6. 已写出 top10_painpoints.sample.json（模拟结果样例）');
 
   console.log('\n🎉 模拟测试全部通过');
 }

@@ -42,17 +42,28 @@ export const config = {
   /** MOCK_LLM=true 时不调真实 API，用确定性规则打分（模拟测试 / CI 用） */
   mockLlm: process.env.MOCK_LLM === 'true',
 
+  /** Serper.dev API Key（排名速度分的 SERP 实测），缺省时降级为免费信号 */
+  serperApiKey: process.env.SERPER_API_KEY ?? '',
+
+  /** MOCK_SERP=true 时不调 Serper，用确定性规则生成 SERP 信号（测试用） */
+  mockSerp: process.env.MOCK_SERP === 'true',
+
   /** 第一层热度打分后送入 LLM 终审的候选数 */
   llmCandidates: Number(process.env.LLM_CANDIDATES ?? 50),
 
   /** 最终输出的痛点关键词数 */
   finalTopN: Number(process.env.FINAL_TOP_N ?? 10),
 
-  /** 总分权重：痛感 / 商业意图 / 热度 */
+  /**
+   * 总分权重：痛感 / 商业意图 / 排名速度 / 热度。
+   * 新站期 rankSpeed=0.2（"做得上去的 7 分痛点"比"做不上去的 10 分痛点"值钱）；
+   * 站点权重起来后把 WEIGHT_RANK_SPEED 调回 0 再攻高难度词。
+   */
   weights: {
-    pain: Number(process.env.WEIGHT_PAIN ?? 0.5),
-    intent: Number(process.env.WEIGHT_INTENT ?? 0.3),
-    heat: Number(process.env.WEIGHT_HEAT ?? 0.2),
+    pain: Number(process.env.WEIGHT_PAIN ?? 0.4),
+    intent: Number(process.env.WEIGHT_INTENT ?? 0.25),
+    rankSpeed: Number(process.env.WEIGHT_RANK_SPEED ?? 0.2),
+    heat: Number(process.env.WEIGHT_HEAT ?? 0.15),
   },
 };
 

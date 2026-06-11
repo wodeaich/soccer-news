@@ -4,6 +4,7 @@ import { config } from './config';
 import { PainPointModel } from './db/painPoint.model';
 import { clusterKeywords, SourcePost } from './analysis/heat';
 import { scoreWithLlm } from './analysis/deepseek';
+import { getRankSpeedScores } from './analysis/serp';
 import { rankFinal } from './analysis/rank';
 
 /**
@@ -34,15 +35,21 @@ async function main() {
   console.log(`[analyze] ${posts.length} posts -> ${clusters.length} keyword clusters`);
 
   const candidates = [...clusters].sort((a, b) => b.heatScore - a.heatScore).slice(0, config.llmCandidates);
-  console.log(`[analyze] sending top ${candidates.length} clusters to LLM for pain/intent scoring...`);
 
+  console.log(`[analyze] fetching SERP rank-speed signals for ${candidates.length} candidates (Serper.dev)...`);
+  const rankSpeeds = await getRankSpeedScores(candidates);
+
+  console.log(`[analyze] sending top ${candidates.length} clusters to LLM for pain/intent scoring...`);
   const llmScores = await scoreWithLlm(candidates);
-  const top = rankFinal(candidates, llmScores);
+
+  const top = rankFinal(candidates, llmScores, rankSpeeds);
 
   fs.writeFileSync('top10_painpoints.json', JSON.stringify(top, null, 2));
   console.log(`[analyze] wrote top10_painpoints.json (${top.length} pain points):\n`);
   for (const p of top) {
-    console.log(`  #${p.rank} [${p.final_score}] ${p.keyword} (pain=${p.pain_score} intent=${p.intent_score} heat=${p.heat_score})`);
+    console.log(
+      `  #${p.rank} [${p.final_score}] ${p.keyword} (pain=${p.pain_score} intent=${p.intent_score} speed=${p.rank_speed_score} heat=${p.heat_score})`,
+    );
   }
 
   await mongoose.disconnect();
