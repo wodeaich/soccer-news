@@ -31,6 +31,29 @@ export const config = {
 
   /** 清洗后文本最短长度，低于此值视为垃圾数据丢弃 */
   minContentLength: Number(process.env.MIN_CONTENT_LENGTH ?? 50),
+
+  // ===== 分析模块（痛点 Top N 提炼）=====
+
+  /** DeepSeek API Key（兼容 OpenAI 格式），缺省时分析模块拒绝启动（除非 MOCK_LLM=true） */
+  deepseekApiKey: process.env.DEEPSEEK_API_KEY ?? '',
+  deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com',
+  deepseekModel: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
+
+  /** MOCK_LLM=true 时不调真实 API，用确定性规则打分（模拟测试 / CI 用） */
+  mockLlm: process.env.MOCK_LLM === 'true',
+
+  /** 第一层热度打分后送入 LLM 终审的候选数 */
+  llmCandidates: Number(process.env.LLM_CANDIDATES ?? 50),
+
+  /** 最终输出的痛点关键词数 */
+  finalTopN: Number(process.env.FINAL_TOP_N ?? 10),
+
+  /** 总分权重：痛感 / 商业意图 / 热度 */
+  weights: {
+    pain: Number(process.env.WEIGHT_PAIN ?? 0.5),
+    intent: Number(process.env.WEIGHT_INTENT ?? 0.3),
+    heat: Number(process.env.WEIGHT_HEAT ?? 0.2),
+  },
 };
 
 export function randomDelay(minMs: number, maxMs: number): Promise<void> {

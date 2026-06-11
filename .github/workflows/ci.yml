@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          # CI 里不需要真浏览器，跳过 Chromium 下载加速安装
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+
+      - name: Type check
+        run: npm run lint
+
+      - name: Simulation test (mock data, no DB / no LLM API)
+        run: npm run test:sim
+        env:
+          MOCK_LLM: 'true'

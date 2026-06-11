@@ -7,6 +7,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
+    "analyze": "node dist/analyze.js",
+    "analyze:dev": "ts-node src/analyze.ts",
+    "test:sim": "ts-node src/test/simulate.ts",
     "lint": "tsc --noEmit"
   },
   "engines": {

@@ -66,6 +66,9 @@ export async function scrapeQuoraPainPoints(browser: Browser, keyword: string): 
         url: question.url,
         raw_text: `${question.title}\n${answers.slice(0, 3).join('\n')}`,
         scraped_at: new Date(),
+        upvotes: 0,
+        comments: answers.length,
+        community: 'quora.com',
       });
     } catch (error) {
       console.error(`[quora] scrape failed for ${question.url}:`, (error as Error).message);

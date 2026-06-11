@@ -20,6 +20,27 @@ src/
 └── db/
     ├── painPoint.model.ts   # Mongoose Schema（url 唯一索引去重）
     └── save.ts              # upsert 入库
+src/analyze.ts               # 分析入口：DB -> 聚类 -> 热度 -> LLM -> Top 10
+src/analysis/
+├── heat.ts                  # 关键词 Jaccard 聚类 + 热度打分（第一层，免费）
+├── deepseek.ts              # DeepSeek 终审：痛感+商业意图打分（第二层）
+└── rank.ts                  # 加权总分排序，输出 top10_painpoints.json
+src/test/simulate.ts         # 模拟测试：mock 数据全链路（CI 自动跑）
+```
+
+## 痛点 Top 10 分析（npm run analyze）
+
+两层漏斗：**量化打分把 N 个关键词簇压到 50（不花钱）→ DeepSeek 把 50 压到 10（一次 API 调用）**。
+
+- 第一层热度分 = `log(1+帖子数)×2 + log(1+总赞) + log(1+总评论)×1.5 + 跨社区数×3`
+- 第二层 LLM 按痛感强度（情绪词/未解决/紧迫性）和商业意图（交易型 vs 信息型修饰词/可解决性）各打 1-10 分
+- 总分 = 痛感×0.5 + 意图×0.3 + 归一化热度×0.2（权重可用 `WEIGHT_*` 环境变量调）
+- 输出 `top10_painpoints.json`，每个痛点附代表性用户原话和来源链接
+
+模拟测试（不需要数据库和 API Key）：
+
+```bash
+npm run test:sim   # mock 数据全链路 + 断言，CI 每次 push 自动跑
 ```
 
 ## 本地运行
@@ -61,6 +82,7 @@ npm run dev
 |--------|------|------|
 | `MONGODB_URI` | ✅ | 云端 MongoDB 连接串，推荐 [MongoDB Atlas 免费层](https://www.mongodb.com/atlas)：`mongodb+srv://<user>:<pass>@<cluster>/app_factory_seo`。注意 Atlas 需在 Network Access 放行 `0.0.0.0/0`（GitHub Runner IP 不固定） |
 | `PROXY_URL` | ❌ | 住宅代理地址 `http://user:pass@host:port`，被封 IP 时配置 |
+| `DEEPSEEK_API_KEY` | ✅(分析) | DeepSeek 开放平台 API Key，分析 workflow 用 |
 
 **Settings → Secrets and variables → Actions → Variables（非机密配置）：**
 
@@ -72,6 +94,14 @@ npm run dev
 | `MAX_SUGGESTIONS_PER_SEED` | ❌ | `20` |
 
 填完后到 **Actions → Pain Point Ingestion → Run workflow** 手动跑一次验证，绿了之后每天定时自动执行。
+
+三个 workflow 的分工：
+
+| Workflow | 触发 | 作用 |
+|----------|------|------|
+| `ci.yml` | 每次 push | 类型检查 + mock 数据模拟测试，不花钱不联外网 |
+| `ingest.yml` | 每天 UTC 02:00 / 手动 | 抓取入库 |
+| `analyze.yml` | 每周一 UTC 03:00 / 手动 | 提炼 Top 10，结果作为 artifact 下载（Actions 运行页底部 `top10-painpoints`） |
 
 ### 其他部署选项
 

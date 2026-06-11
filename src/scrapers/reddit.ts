@@ -23,6 +23,9 @@ interface RedditSearchChild {
     title: string;
     permalink: string;
     selftext: string;
+    score: number;
+    num_comments: number;
+    subreddit: string;
   };
 }
 
@@ -46,7 +49,7 @@ export async function scrapeRedditPainPoints(keyword: string): Promise<ScrapedIt
     console.log(`[reddit] r/${subreddit} "${keyword}" -> ${children.length} posts`);
 
     for (const child of children) {
-      const { title, permalink, selftext } = child.data;
+      const { title, permalink, selftext, score, num_comments } = child.data;
       const postUrl = `https://www.reddit.com${permalink}`;
 
       // 深入帖子页 JSON，提取前 3 条高赞评论
@@ -72,6 +75,9 @@ export async function scrapeRedditPainPoints(keyword: string): Promise<ScrapedIt
         url: postUrl,
         raw_text: `${title}\n${selftext}\n${topComments.join('\n')}`,
         scraped_at: new Date(),
+        upvotes: score ?? 0,
+        comments: num_comments ?? 0,
+        community: `r/${child.data.subreddit ?? subreddit}`,
       });
 
       await randomDelay(1000, 3000);
