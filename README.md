@@ -87,6 +87,7 @@ npm run dev
 |--------|------|------|
 | `MONGODB_URI` | ✅ | 云端 MongoDB 连接串，推荐 [MongoDB Atlas 免费层](https://www.mongodb.com/atlas)：`mongodb+srv://<user>:<pass>@<cluster>/app_factory_seo`。注意 Atlas 需在 Network Access 放行 `0.0.0.0/0`（GitHub Runner IP 不固定） |
 | `PROXY_URL` | ❌ | 住宅代理地址 `http://user:pass@host:port`，被封 IP 时配置 |
+| `REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET` | ✅(抓取) | [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps) 创建 **script** 类型应用（勾选 reCAPTCHA 后才能提交）。client_id 在应用卡片 "personal use script" 字样正下方那串字符；secret 点 edit 展开可见。**GitHub Actions 数据中心 IP 已被 Reddit 匿名接口封锁(403)，必须配置** |
 | `DEEPSEEK_API_KEY` | ✅(分析) | DeepSeek 开放平台 API Key，分析 workflow 用 |
 | `SERPER_API_KEY` | 建议 | [serper.dev](https://serper.dev) API Key（注册送 2500 次查询），排名速度分的 SERP 实测；不填自动降级为免费信号 |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | ❌(导出) | GCP 服务账号 JSON 凭据的完整文件内容，Google Sheets 导出用；与 `GOOGLE_SHEET_ID` 配套，不填则跳过导出 |

@@ -6,17 +6,55 @@ const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
 /**
- * Reddit 抓取方案说明（审查后的重要修正）：
+ * Reddit 抓取双模式：
  *
- * 新版 www.reddit.com 前端是 Web Components + Shadow DOM，
- * page.content() 拿到的 HTML 里根本没有帖子正文和评论，
- * cheerio 选择器（如 div[slot="text-body"]）大概率取不到数据。
+ * 1. OAuth 模式（推荐）：配置 REDDIT_CLIENT_ID/SECRET 后，用 client_credentials
+ *    换取 token 走 oauth.reddit.com —— 100 req/min，数据中心 IP（GitHub Actions）不封。
+ * 2. 匿名回退：未配置凭据时走公开 JSON 端点（URL 加 .json）。注意 Reddit 已开始
+ *    封锁数据中心 IP（403），匿名模式只适合本地/住宅网络跑。
  *
- * 更稳定的做法是直接使用 Reddit 的公开 JSON 端点（任意页面加 .json 后缀），
- * 返回结构化数据，无需 Puppeteer 渲染，速度快 10 倍以上且不依赖 DOM 结构。
- * 注意：未登录调用有约 10 req/min 的频控，必须配合随机延迟。
- * 商用/大规模场景请改用 Reddit 官方 OAuth API（见 README）。
+ * （历史审查结论保留：不要用 Puppeteer+cheerio 抓新版 reddit.com，
+ *   其前端是 Shadow DOM，page.content() 拿不到正文和评论。）
  */
+
+let cachedToken: { value: string; expiresAt: number } | null = null;
+
+async function getRedditToken(): Promise<string> {
+  if (cachedToken && Date.now() < cachedToken.expiresAt) return cachedToken.value;
+
+  const res = await axios.post(
+    'https://www.reddit.com/api/v1/access_token',
+    new URLSearchParams({ grant_type: 'client_credentials' }),
+    {
+      auth: { username: config.redditClientId, password: config.redditClientSecret },
+      headers: { 'User-Agent': config.redditUserAgent },
+      timeout: 15_000,
+    },
+  );
+  // 提前 60s 过期，避免边界上用到失效 token
+  cachedToken = { value: res.data.access_token, expiresAt: Date.now() + (res.data.expires_in - 60) * 1000 };
+  console.log('[reddit] OAuth token acquired');
+  return cachedToken.value;
+}
+
+const useOAuth = () => Boolean(config.redditClientId && config.redditClientSecret);
+
+/** 统一请求入口：path 不带 .json 后缀，匿名模式自动补上 */
+async function redditGet(path: string, query: string): Promise<any> {
+  if (useOAuth()) {
+    const token = await getRedditToken();
+    const res = await axios.get(`https://oauth.reddit.com${path}?${query}`, {
+      headers: { Authorization: `Bearer ${token}`, 'User-Agent': config.redditUserAgent },
+      timeout: 15_000,
+    });
+    return res.data;
+  }
+  const res = await axios.get(`https://www.reddit.com${path}.json?${query}`, {
+    headers: { 'User-Agent': UA },
+    timeout: 15_000,
+  });
+  return res.data;
+}
 
 interface RedditSearchChild {
   data: {
@@ -33,14 +71,13 @@ export async function scrapeRedditPainPoints(keyword: string): Promise<ScrapedIt
   const scraped: ScrapedItem[] = [];
 
   for (const subreddit of config.subreddits) {
-    const searchUrl = `https://www.reddit.com/r/${subreddit}/search.json?q=${encodeURIComponent(
-      keyword,
-    )}&restrict_sr=1&sort=relevance&limit=${config.maxPostsPerKeyword}`;
-
     let children: RedditSearchChild[] = [];
     try {
-      const res = await axios.get(searchUrl, { headers: { 'User-Agent': UA }, timeout: 15_000 });
-      children = res.data?.data?.children ?? [];
+      const data = await redditGet(
+        `/r/${subreddit}/search`,
+        `q=${encodeURIComponent(keyword)}&restrict_sr=1&sort=relevance&limit=${config.maxPostsPerKeyword}`,
+      );
+      children = data?.data?.children ?? [];
     } catch (error) {
       console.error(`[reddit] search failed for r/${subreddit} "${keyword}":`, (error as Error).message);
       continue;
@@ -55,11 +92,8 @@ export async function scrapeRedditPainPoints(keyword: string): Promise<ScrapedIt
       // 深入帖子页 JSON，提取前 3 条高赞评论
       const topComments: string[] = [];
       try {
-        const res = await axios.get(`${postUrl.replace(/\/$/, '')}.json?sort=top&limit=5`, {
-          headers: { 'User-Agent': UA },
-          timeout: 15_000,
-        });
-        const comments = res.data?.[1]?.data?.children ?? [];
+        const data = await redditGet(permalink.replace(/\/$/, ''), 'sort=top&limit=5');
+        const comments = data?.[1]?.data?.children ?? [];
         for (const c of comments.slice(0, 3)) {
           const body: string | undefined = c?.data?.body;
           if (body && c?.data?.author !== 'AutoModerator') topComments.push(body);
@@ -80,7 +114,8 @@ export async function scrapeRedditPainPoints(keyword: string): Promise<ScrapedIt
         community: `r/${child.data.subreddit ?? subreddit}`,
       });
 
-      await randomDelay(1000, 3000);
+      // OAuth 100 req/min 限额下可以更快；匿名模式保持保守延迟
+      await (useOAuth() ? randomDelay(600, 1200) : randomDelay(1000, 3000));
     }
   }
 

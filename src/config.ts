@@ -29,6 +29,15 @@ export const config = {
   /** 可选：HTTP 代理，形如 http://user:pass@host:port，留空则直连 */
   proxyUrl: process.env.PROXY_URL ?? '',
 
+  /**
+   * Reddit 官方 API 凭据（reddit.com/prefs/apps 创建 script 应用）。
+   * 配置后走 OAuth（100 req/min，数据中心 IP 不封）；留空回退到匿名 JSON 接口。
+   */
+  redditClientId: process.env.REDDIT_CLIENT_ID ?? '',
+  redditClientSecret: process.env.REDDIT_CLIENT_SECRET ?? '',
+  /** Reddit 要求的 UA 格式: platform:app-id:version (by /u/username) */
+  redditUserAgent: process.env.REDDIT_USER_AGENT ?? 'script:painpoint-ingestion:v1.0 (by /u/anonymous)',
+
   /** 清洗后文本最短长度，低于此值视为垃圾数据丢弃 */
   minContentLength: Number(process.env.MIN_CONTENT_LENGTH ?? 50),
 

@@ -33,6 +33,9 @@ jobs:
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           PROXY_URL: ${{ secrets.PROXY_URL }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USER_AGENT: ${{ vars.REDDIT_USER_AGENT }}
           SEED_KEYWORDS: ${{ github.event.inputs.seed_keywords || vars.SEED_KEYWORDS }}
           SUBREDDITS: ${{ vars.SUBREDDITS }}
           MAX_POSTS_PER_KEYWORD: ${{ vars.MAX_POSTS_PER_KEYWORD }}
