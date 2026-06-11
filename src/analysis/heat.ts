@@ -7,6 +7,7 @@
 
 export interface SourcePost {
   keyword: string;
+  seed_keyword: string;
   title: string;
   url: string;
   cleaned_content: string;
@@ -20,6 +21,8 @@ export interface KeywordCluster {
   keyword: string;
   /** 簇内合并掉的其他关键词 */
   variants: string[];
+  /** 簇内帖子来自哪些初始种子词（溯源） */
+  seedKeywords: string[];
   postCount: number;
   totalUpvotes: number;
   totalComments: number;
@@ -106,6 +109,7 @@ export function clusterKeywords(posts: SourcePost[], threshold = 0.7): KeywordCl
     return {
       keyword: center,
       variants: members.filter((m) => m !== center),
+      seedKeywords: Array.from(new Set(unique.map((p) => p.seed_keyword).filter(Boolean))),
       ...stats,
       heatScore: heatScore(stats),
       topPosts: [...unique].sort((a, b) => b.upvotes - a.upvotes).slice(0, 3),

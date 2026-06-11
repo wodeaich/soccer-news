@@ -24,6 +24,7 @@ export async function saveToDatabase(items: ScrapedItem[]): Promise<{ saved: num
       {
         $setOnInsert: {
           keyword: item.keyword,
+          seed_keyword: item.seed_keyword ?? item.keyword,
           title: item.title,
           source: item.source,
           url: item.url,

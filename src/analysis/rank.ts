@@ -7,6 +7,7 @@ export interface FinalPainPoint {
   rank: number;
   keyword: string;
   variants: string[];
+  seed_keywords: string[];
   final_score: number;
   pain_score: number;
   intent_score: number;
@@ -47,6 +48,7 @@ export function rankFinal(
       return {
         keyword: cluster.keyword,
         variants: cluster.variants,
+        seed_keywords: cluster.seedKeywords,
         final_score: Number(
           (score.pain_score * pain + score.intent_score * intent + speed.score * rankSpeed + heatNorm * heat).toFixed(2),
         ),

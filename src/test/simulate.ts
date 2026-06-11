@@ -15,10 +15,12 @@ import { clusterKeywords, tokenize, jaccard, SourcePost } from '../analysis/heat
 import { scoreWithLlm } from '../analysis/deepseek';
 import { computeRankSpeed, getRankSpeedScores } from '../analysis/serp';
 import { rankFinal } from '../analysis/rank';
+import { buildSheetRows, SHEET_HEADER } from '../export/googleSheets';
 
 function post(p: Partial<SourcePost> & { keyword: string; url: string }): SourcePost {
   return {
     title: p.keyword,
+    seed_keyword: 'life insurance for seniors',
     cleaned_content: `${p.keyword} discussion`,
     upvotes: 0,
     comments: 0,
@@ -114,9 +116,19 @@ async function main() {
   );
   console.log(`✅ 5. rankFinal: 输出 ${top.length} 个痛点，降序正确，Top1 = "${top[0].keyword}"`);
 
-  // ---------- 6. 输出文件 ----------
+  // ---------- 6. Google Sheets 行构造测试 ----------
+  const rows = buildSheetRows(top, 'senior-insurance', '2026-06-11T00:00:00Z');
+  assert(rows.length === top.length, '每个痛点应生成一行');
+  assert(rows[0].length === SHEET_HEADER.length, '列数应与表头一致');
+  assert(rows[0][0] === 'senior-insurance', '第 1 列应为行业');
+  assert(rows[0][1].includes('life insurance for seniors'), '第 2 列应为初始种子词（溯源）');
+  assert(/帖子数:\d+ 总赞:\d+ 评论:\d+ 社区数:\d+/.test(rows[0][2]), '第 3 列应为 REDDIT 模块统计');
+  assert(rows[0][3] === top[0].keyword, '第 4 列应为最终关键词');
+  console.log('✅ 6. buildSheetRows: 行业/初始关键词/REDDIT模块/最终关键词 列构造正确');
+
+  // ---------- 7. 输出文件 ----------
   fs.writeFileSync('top10_painpoints.sample.json', JSON.stringify(top, null, 2));
-  console.log('✅ 6. 已写出 top10_painpoints.sample.json（模拟结果样例）');
+  console.log('✅ 7. 已写出 top10_painpoints.sample.json（模拟结果样例）');
 
   console.log('\n🎉 模拟测试全部通过');
 }

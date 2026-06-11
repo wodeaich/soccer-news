@@ -6,6 +6,7 @@ import { clusterKeywords, SourcePost } from './analysis/heat';
 import { scoreWithLlm } from './analysis/deepseek';
 import { getRankSpeedScores } from './analysis/serp';
 import { rankFinal } from './analysis/rank';
+import { exportToGoogleSheet } from './export/googleSheets';
 
 /**
  * 分析入口：MongoDB 全量痛点数据 -> 聚类 -> 热度 Top 50 -> DeepSeek 终审
@@ -23,6 +24,7 @@ async function main() {
 
   const posts: SourcePost[] = docs.map((d) => ({
     keyword: d.keyword,
+    seed_keyword: d.seed_keyword || d.keyword,
     title: d.title,
     url: d.url,
     cleaned_content: d.cleaned_content,
@@ -50,6 +52,12 @@ async function main() {
     console.log(
       `  #${p.rank} [${p.final_score}] ${p.keyword} (pain=${p.pain_score} intent=${p.intent_score} speed=${p.rank_speed_score} heat=${p.heat_score})`,
     );
+  }
+
+  if (config.googleSheetId && config.googleServiceAccountJson) {
+    await exportToGoogleSheet(top);
+  } else {
+    console.log('[analyze] Google Sheet export skipped (set GOOGLE_SHEET_ID + GOOGLE_SERVICE_ACCOUNT_JSON to enable)');
   }
 
   await mongoose.disconnect();

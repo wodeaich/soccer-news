@@ -1,5 +1,7 @@
 export interface ScrapedItem {
   keyword: string;
+  /** 该长尾词来自哪个初始种子词（由 pipeline 在入库前回填，缺省 = keyword 本身） */
+  seed_keyword?: string;
   title: string;
   source: 'Reddit' | 'Quora';
   url: string;

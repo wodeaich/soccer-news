@@ -89,6 +89,20 @@ npm run dev
 | `PROXY_URL` | ❌ | 住宅代理地址 `http://user:pass@host:port`，被封 IP 时配置 |
 | `DEEPSEEK_API_KEY` | ✅(分析) | DeepSeek 开放平台 API Key，分析 workflow 用 |
 | `SERPER_API_KEY` | 建议 | [serper.dev](https://serper.dev) API Key（注册送 2500 次查询），排名速度分的 SERP 实测；不填自动降级为免费信号 |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | ❌(导出) | GCP 服务账号 JSON 凭据的完整文件内容，Google Sheets 导出用；与 `GOOGLE_SHEET_ID` 配套，不填则跳过导出 |
+
+### Google Sheets 导出配置（最终关键词自动写入你的网盘表格）
+
+每次分析后，Top 10 结果自动追加到你 Google 网盘里的表格，列结构：
+`行业 | 初始关键词 | REDDIT 模块 | 最终关键词 | 总分 | 痛感 | 商业意图 | 排名速度 | 热度 | 代表性用户原话 | 来源链接 | 批次时间`
+
+一次性配置步骤（约 10 分钟）：
+
+1. 打开 [Google Cloud Console](https://console.cloud.google.com) → 新建项目 → **APIs & Services → Library** 搜索并启用 **Google Sheets API**
+2. **IAM & Admin → Service Accounts → Create**，随便起名，不用授任何角色
+3. 进入该服务账号 → **Keys → Add Key → JSON**，下载密钥文件，**整个文件内容**粘贴为 GitHub Secret `GOOGLE_SERVICE_ACCOUNT_JSON`
+4. 在你的 Google Drive 新建一个空白表格，点右上角**共享**，把服务账号邮箱（形如 `xxx@项目名.iam.gserviceaccount.com`，在 JSON 的 `client_email` 字段）加为**编辑者**——漏了这步会报 403
+5. 表格 URL 中 `/d/` 和 `/edit` 之间那串就是 Sheet ID，填到 GitHub Variable `GOOGLE_SHEET_ID`；再加一个 Variable `INDUSTRY`（如 `senior-insurance`）
 
 **Settings → Secrets and variables → Actions → Variables（非机密配置）：**
 

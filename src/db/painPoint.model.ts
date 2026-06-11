@@ -1,7 +1,8 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ILongTailPainPoint extends Document {
-  keyword: string; // 触发的 Google 长尾种子词
+  keyword: string; // 触发的 Google 长尾词
+  seed_keyword: string; // 该长尾词来自哪个初始种子词（溯源）
   title: string; // 原始帖子标题 / 问题
   source: string; // 来源平台 (Reddit / Quora)
   url: string; // 原始来源链接，唯一索引天然去重
@@ -15,6 +16,7 @@ export interface ILongTailPainPoint extends Document {
 
 const LongTailPainPointSchema = new Schema<ILongTailPainPoint>({
   keyword: { type: String, required: true, index: true },
+  seed_keyword: { type: String, default: '' },
   title: { type: String, required: true },
   source: { type: String, required: true },
   url: { type: String, required: true, unique: true },

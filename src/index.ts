@@ -17,13 +17,16 @@ async function main() {
   await mongoose.connect(config.mongoUri);
 
   console.log(`[pipeline] expanding ${config.seedKeywords.length} seed keyword(s) via Google Suggest...`);
-  const keywordSet = new Set<string>(config.seedKeywords);
+  // keyword -> 它来自哪个种子词（溯源，最终会同步到 Google Sheet 的"初始关键词"列）
+  const seedOf = new Map<string, string>(config.seedKeywords.map((s) => [s, s]));
   for (const seed of config.seedKeywords) {
     const suggestions = await getGoogleSuggestions(seed);
     console.log(`[pipeline] "${seed}" -> ${suggestions.length} suggestions`);
-    suggestions.slice(0, config.maxSuggestionsPerSeed).forEach((s) => keywordSet.add(s));
+    for (const s of suggestions.slice(0, config.maxSuggestionsPerSeed)) {
+      if (!seedOf.has(s)) seedOf.set(s, seed);
+    }
   }
-  const keywords = Array.from(keywordSet);
+  const keywords = Array.from(seedOf.keys());
   console.log(`[pipeline] total ${keywords.length} keywords to scrape`);
 
   const browser = await launchBrowser();
@@ -35,6 +38,7 @@ async function main() {
 
       items.push(...(await scrapeRedditPainPoints(keyword)));
       items.push(...(await scrapeQuoraPainPoints(browser, keyword)));
+      items.forEach((it) => (it.seed_keyword = seedOf.get(keyword) ?? keyword));
 
       const { saved, skipped } = await saveToDatabase(items);
       totalSaved += saved;

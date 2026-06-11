@@ -54,6 +54,17 @@ export const config = {
   /** 最终输出的痛点关键词数 */
   finalTopN: Number(process.env.FINAL_TOP_N ?? 10),
 
+  // ===== Google Sheets 导出 =====
+
+  /** 行业标识，写入 Sheet 的"行业"列，如 senior-insurance */
+  industry: process.env.INDUSTRY ?? '',
+
+  /** 目标 Google Sheet 的 ID（表格 URL 中 /d/ 与 /edit 之间那串），留空则跳过导出 */
+  googleSheetId: process.env.GOOGLE_SHEET_ID ?? '',
+
+  /** GCP 服务账号的完整 JSON 凭据（整个文件内容作为一个环境变量/Secret） */
+  googleServiceAccountJson: process.env.GOOGLE_SERVICE_ACCOUNT_JSON ?? '',
+
   /**
    * 总分权重：痛感 / 商业意图 / 排名速度 / 热度。
    * 新站期 rankSpeed=0.2（"做得上去的 7 分痛点"比"做不上去的 10 分痛点"值钱）；

@@ -35,6 +35,9 @@ jobs:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_SHEET_ID: ${{ vars.GOOGLE_SHEET_ID }}
+          INDUSTRY: ${{ vars.INDUSTRY }}
           FINAL_TOP_N: ${{ github.event.inputs.final_top_n || '10' }}
           LLM_CANDIDATES: ${{ vars.LLM_CANDIDATES }}
 
