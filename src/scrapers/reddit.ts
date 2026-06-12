@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { http } from '../utils/http';
 import { config, randomDelay } from '../config';
 import { ScrapedItem } from './types';
 
@@ -22,7 +22,7 @@ let cachedToken: { value: string; expiresAt: number } | null = null;
 async function getRedditToken(): Promise<string> {
   if (cachedToken && Date.now() < cachedToken.expiresAt) return cachedToken.value;
 
-  const res = await axios.post(
+  const res = await http.post(
     'https://www.reddit.com/api/v1/access_token',
     new URLSearchParams({ grant_type: 'client_credentials' }),
     {
@@ -43,13 +43,13 @@ const useOAuth = () => Boolean(config.redditClientId && config.redditClientSecre
 async function redditGet(path: string, query: string): Promise<any> {
   if (useOAuth()) {
     const token = await getRedditToken();
-    const res = await axios.get(`https://oauth.reddit.com${path}?${query}`, {
+    const res = await http.get(`https://oauth.reddit.com${path}?${query}`, {
       headers: { Authorization: `Bearer ${token}`, 'User-Agent': config.redditUserAgent },
       timeout: 15_000,
     });
     return res.data;
   }
-  const res = await axios.get(`https://www.reddit.com${path}.json?${query}`, {
+  const res = await http.get(`https://www.reddit.com${path}.json?${query}`, {
     headers: { 'User-Agent': UA },
     timeout: 15_000,
   });

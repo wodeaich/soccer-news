@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { http } from '../utils/http';
 import { randomDelay } from '../config';
 
 const UA =
@@ -19,7 +19,7 @@ export async function getGoogleSuggestions(seedKeyword: string): Promise<string[
 
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const response = await axios.get(url, {
+        const response = await http.get(url, {
           headers: { 'User-Agent': UA },
           timeout: 10_000,
         });
