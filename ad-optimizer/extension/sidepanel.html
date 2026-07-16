@@ -31,11 +31,16 @@
 <body>
   <header>
     <span>📊 Ad Optimizer</span>
-    <button id="clear" title="清空本地累积的数据">清空数据</button>
+    <span style="display:flex; gap:6px">
+      <button id="export" title="导出全部数据为 JSON（备份 / 换机迁移 / 未来训练 ML 的数据集）">导出</button>
+      <button id="import" title="从备份 JSON 导入">导入</button>
+      <button id="clear" title="清空本地累积的数据">清空</button>
+    </span>
   </header>
   <div class="wrap">
     <div id="drop">拖入或点击选择<br /><b>导出的 CSV</b>（Meta / Google / TikTok）<br /><span style="font-size:11px">每天拖进来会自动累积去重</span></div>
     <input id="file" type="file" accept=".csv" multiple hidden />
+    <input id="jsonFile" type="file" accept=".json,application/json" hidden />
     <div class="meta" id="stat"></div>
 
     <div id="controls" style="display:none">

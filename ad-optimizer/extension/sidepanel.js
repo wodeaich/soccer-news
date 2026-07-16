@@ -1,32 +1,51 @@
-import { importCsv, mergeRows, buildReport } from './engine.js';
+import { importCsv, buildReport } from './engine.js';
+import { getAllRows, putRows, clearRows, migrateLegacy } from './store.js';
 
 const $ = (id) => document.getElementById(id);
-const STORE = 'adRows';
 
-let rows = [];   // 累积的统一模型数据
+let rows = [];   // 当前内存中的全部明细（从 IndexedDB 载入）
 let report = { dimensions: [] };
 
-// ---------- 本地存储：跨会话累积 ----------
-async function loadRows() {
-  const data = await chrome.storage.local.get(STORE);
-  rows = data[STORE] || [];
-}
-async function saveRows() {
-  await chrome.storage.local.set({ [STORE]: rows });
-}
+async function reload() { rows = await getAllRows(); }
 
-// ---------- 导入 ----------
+// ---------- 导入 CSV ----------
 async function handleFiles(fileList) {
   let added = 0;
   for (const f of fileList) {
-    const text = await f.text();
-    const parsed = importCsv(text);
-    rows = mergeRows(rows, parsed);
+    const parsed = importCsv(await f.text());
+    await putRows(parsed);            // IndexedDB 按维度自动去重入库
     added += parsed.length;
   }
-  await saveRows();
+  await reload();
   rebuild();
   flashStat(`本次导入 ${added} 行，已累积 ${rows.length} 行`);
+}
+
+// ---------- 导出 / 导入备份（JSON）----------
+async function exportData() {
+  const data = await getAllRows();
+  const payload = { app: 'ad-optimizer', version: 1, exportedAt: new Date().toISOString(), rows: data };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ad-optimizer-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  flashStat(`已导出 ${data.length} 行备份`);
+}
+
+async function importBackup(file) {
+  try {
+    const parsed = JSON.parse(await file.text());
+    const incoming = Array.isArray(parsed) ? parsed : parsed.rows;
+    if (!Array.isArray(incoming)) throw new Error('格式不符');
+    await putRows(incoming);
+    await reload();
+    rebuild();
+    flashStat(`已导入备份 ${incoming.length} 行，累积 ${rows.length} 行`);
+  } catch (e) {
+    flashStat('导入失败：不是有效的备份 JSON');
+  }
 }
 
 function rebuild() {
@@ -115,10 +134,18 @@ $('file').onchange = (e) => handleFiles(e.target.files);
 drop.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
 $('dim').onchange = render;
 $('metric').onchange = render;
+$('export').onclick = exportData;
+$('import').onclick = () => $('jsonFile').click();
+$('jsonFile').onchange = (e) => { if (e.target.files[0]) importBackup(e.target.files[0]); e.target.value = ''; };
 $('clear').onclick = async () => {
-  if (!confirm('清空本地累积的全部数据？')) return;
-  rows = []; await saveRows(); rebuild(); baseStat();
+  if (!confirm('清空本地累积的全部数据？（建议先导出备份）')) return;
+  await clearRows(); await reload(); rebuild(); baseStat();
 };
 
 // ---------- 启动 ----------
-(async () => { await loadRows(); baseStat(); rebuild(); })();
+(async () => {
+  await migrateLegacy();     // 旧 chrome.storage 数据一次性迁入 IndexedDB
+  await reload();
+  baseStat();
+  rebuild();
+})();

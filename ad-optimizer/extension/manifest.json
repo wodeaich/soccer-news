@@ -6,5 +6,5 @@
   "action": { "default_title": "打开 Ad Optimizer 侧边栏" },
   "side_panel": { "default_path": "sidepanel.html" },
   "background": { "service_worker": "background.js" },
-  "permissions": ["sidePanel", "storage"]
+  "permissions": ["sidePanel", "storage", "unlimitedStorage"]
 }
