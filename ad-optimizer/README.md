@@ -56,8 +56,18 @@ ad-optimizer/
 │   ├── analyze.ts               # 入口：CSV → 报告 → web/data.js
 │   └── demo.ts                  # 纯代码演示
 ├── samples/                     # 示例 CSV（Meta / Google 导出格式）
-└── web/index.html               # 响应式看板（PC + 手机，零依赖 SVG 图表）
+├── web/index.html               # 响应式看板（PC + 手机，零依赖 SVG 图表）
+└── extension/                   # Chrome/Edge 浏览器插件（MV3 侧边栏）★
+    ├── manifest.json  background.js
+    ├── sidepanel.html  sidepanel.js
+    └── engine.js                # 由 src/ TS 核心移植的浏览器原生引擎
 ```
+
+## 浏览器插件（桌面）
+
+`extension/` 是一个 Manifest V3 侧边栏插件：拖入 CSV → 本地累积去重 → 波动对比 + 结论 + 建议。
+**零封号风险**：不申请任何广告平台页面权限、不注入脚本、不爬后台，数据不出本机。
+安装与用法见 `extension/README.md`。手机端用 `web/` 看板（同一套引擎）。
 
 ## 落地路线
 

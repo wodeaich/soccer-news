@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Ad Optimizer · 广告波动对比",
+  "version": "0.1.0",
+  "description": "拖入 Meta/Google/TikTok 导出的 CSV，本地累积去重，自动对比周期波动并给出归因结论与调整建议。数据不出本机。",
+  "action": { "default_title": "打开 Ad Optimizer 侧边栏" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["sidePanel", "storage"]
+}

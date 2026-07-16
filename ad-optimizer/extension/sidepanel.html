@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <title>Ad Optimizer</title>
+  <style>
+    :root { --bg:#0f1420; --card:#1a2233; --ink:#e6ecf5; --muted:#8b97ad; --up:#ff6b6b; --down:#4dd08a; --line:#5b8def; --band:rgba(91,141,239,.15); }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,"PingFang SC",sans-serif; background:var(--bg); color:var(--ink); font-size:13px; }
+    header { padding:12px 14px; font-weight:600; font-size:15px; border-bottom:1px solid #26304a; display:flex; justify-content:space-between; align-items:center; }
+    header button { background:#243049; color:var(--muted); border:1px solid #2c374f; border-radius:6px; padding:4px 8px; font-size:11px; cursor:pointer; }
+    .wrap { padding:12px 14px; }
+    #drop { border:1.5px dashed #33415f; border-radius:10px; padding:18px; text-align:center; color:var(--muted); cursor:pointer; transition:.15s; }
+    #drop.hot { border-color:var(--line); color:var(--ink); background:#141b29; }
+    #drop b { color:var(--ink); }
+    .meta { margin:8px 0 12px; font-size:11px; color:var(--muted); }
+    select { width:100%; background:var(--card); color:var(--ink); border:1px solid #2c374f; border-radius:8px; padding:8px 10px; font-size:13px; margin-bottom:8px; }
+    .card { background:var(--card); border-radius:10px; padding:12px; margin-bottom:12px; }
+    .card h3 { margin:0 0 8px; font-size:12px; color:var(--muted); font-weight:600; }
+    svg { width:100%; height:auto; display:block; }
+    .kpis { display:flex; gap:6px; margin-bottom:10px; }
+    .kpi { flex:1; background:#141b29; border-radius:8px; padding:8px; }
+    .kpi span { display:block; font-size:10px; color:var(--muted); }
+    .kpi b { font-size:13px; }
+    .concl { line-height:1.6; } .concl .up { color:var(--up); } .concl .down { color:var(--down); }
+    .recs { margin:8px 0 0; padding-left:16px; } .recs li { margin-bottom:6px; }
+    .empty { color:var(--muted); text-align:center; padding:24px 8px; line-height:1.6; }
+    .up { color:var(--up); } .down { color:var(--down); }
+  </style>
+</head>
+<body>
+  <header>
+    <span>📊 Ad Optimizer</span>
+    <button id="clear" title="清空本地累积的数据">清空数据</button>
+  </header>
+  <div class="wrap">
+    <div id="drop">拖入或点击选择<br /><b>导出的 CSV</b>（Meta / Google / TikTok）<br /><span style="font-size:11px">每天拖进来会自动累积去重</span></div>
+    <input id="file" type="file" accept=".csv" multiple hidden />
+    <div class="meta" id="stat"></div>
+
+    <div id="controls" style="display:none">
+      <select id="dim"></select>
+      <select id="metric">
+        <option value="cpc">CPC 单次点击成本</option>
+        <option value="cpm">CPM 千次展示成本</option>
+        <option value="ctr">CTR 点击率</option>
+        <option value="roas">ROAS 花费回报</option>
+      </select>
+    </div>
+
+    <div id="panel"></div>
+  </div>
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>
