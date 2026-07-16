@@ -92,13 +92,23 @@ function render() {
     ['CPC', `¥${a.baseline.cpc.toFixed(2)}→¥${a.current.cpc.toFixed(2)}`, a.change.cpcPct],
   ].map(([k,v,c]) => `<div class="kpi"><span>${k} <b class="${cls(c)}" style="font-size:10px">${fmtPct(c)}</b></span><b>${v}</b></div>`).join('');
 
-  const concl = a.conclusion.replace(/(\+\d+%)/g, '<span class="up">$1</span>').replace(/(-\d+%)/g, '<span class="down">$1</span>');
-  const recs = a.recommendations.map((r) => `<li>${r}</li>`).join('');
+  const hl = (t) => t.replace(/(\+\d+%)/g, '<span class="up">$1</span>').replace(/(-\d+%)/g, '<span class="down">$1</span>');
+  const recsHtml = (arr) => arr.map((r) => `<li>${r}</li>`).join('');
+
+  // 有回收数据时，回收(ROI)归因优先展示
+  const roiCard = d.roi ? `<div class="card"><h3>💰 回收(ROI) 归因 · 是 CPM 还是 CPC</h3>
+       <div class="kpis">
+         <div class="kpi"><span>回收 ROAS <b class="${cls(d.roi.change.roasPct)}" style="font-size:10px">${fmtPct(d.roi.change.roasPct)}</b></span><b>${d.roi.baseline.roas.toFixed(2)}→${d.roi.current.roas.toFixed(2)}</b></div>
+         <div class="kpi"><span>CVR <b class="${cls(d.roi.change.cvrPct)}" style="font-size:10px">${fmtPct(d.roi.change.cvrPct)}</b></span><b>${(d.roi.baseline.cvr*100).toFixed(1)}%→${(d.roi.current.cvr*100).toFixed(1)}%</b></div>
+         <div class="kpi"><span>客单价 <b class="${cls(d.roi.change.aovPct)}" style="font-size:10px">${fmtPct(d.roi.change.aovPct)}</b></span><b>¥${d.roi.baseline.aov.toFixed(0)}→¥${d.roi.current.aov.toFixed(0)}</b></div>
+       </div>
+       <div class="concl">${hl(d.roi.conclusion)}</div><ul class="recs">${recsHtml(d.roi.recommendations)}</ul></div>` : '';
 
   $('panel').innerHTML =
     `<div class="card"><h3>${d.key} · ${m.toUpperCase()} 趋势 + 7日均线 ±2σ</h3>
        <div class="kpis">${kpis}</div>${chartSvg(d.series[m], m)}</div>
-     <div class="card"><h3>对比结论与调整建议</h3><div class="concl">${concl}</div><ul class="recs">${recs}</ul></div>`;
+     ${roiCard}
+     <div class="card"><h3>成本侧：CPC 归因与建议</h3><div class="concl">${hl(a.conclusion)}</div><ul class="recs">${recsHtml(a.recommendations)}</ul></div>`;
 }
 
 // 零依赖 SVG 折线图：波动带 + 均线 + 数据线 + 异常红点

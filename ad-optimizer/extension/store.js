@@ -8,8 +8,8 @@ const DB_NAME = 'adOptimizer';
 const STORE = 'rows';
 const VERSION = 1;
 
-/** 去重主键：同一 平台|广告|地区|日期 只保留一条（新导入覆盖旧的） */
-export const rowKey = (r) => `${r.platform}|${r.campaignName}|${r.region ?? ''}|${r.date}`;
+/** 去重主键：同一 平台|广告|内容ID|地区|日期 只保留一条（新导入覆盖旧的） */
+export const rowKey = (r) => `${r.platform}|${r.campaignName}|${r.contentId ?? ''}|${r.region ?? ''}|${r.date}`;
 
 function open() {
   return new Promise((resolve, reject) => {
