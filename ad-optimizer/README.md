@@ -26,6 +26,18 @@ Meta / Google / TikTok 官方只读 API  ──►  采集器(各写一次)
              CPM/CPC/CTR 分解 → 结论/建议                 维度下拉 + 波动图表
 ```
 
+## 快速开始（第一期已可跑）
+
+```bash
+cd ad-optimizer
+npm install
+npx ts-node src/analyze.ts        # 分析 samples/ 下的 CSV，打印结论并生成 web/data.js
+# 然后浏览器直接打开 web/index.html 看图表
+```
+
+用你自己的数据：把后台导出的 CSV 放进 `samples/`（或 `npx ts-node src/analyze.ts 你的.csv`）即可。
+列名会自动容错匹配（见 `src/importer/csv.ts` 的 ALIASES），支持中英文表头。
+
 ## 目录结构
 
 ```
@@ -34,11 +46,17 @@ ad-optimizer/
 │   ├── model/adMetric.ts        # 统一数据模型 AdMetricDaily（多平台/多维度）
 │   ├── analysis/
 │   │   ├── attribution.ts       # 对比归因引擎（CPM/CPC/CTR 分解）★核心
-│   │   └── fluctuation.ts       # 波动分析（均线/标准差带/Z-score 异常）
-│   ├── importer/csv.ts          # 第一期：CSV 导入（不依赖 API 令牌）
-│   └── collectors/              # 第二期：三平台官方 API 采集器
-│       ├── meta.ts  google.ts  tiktok.ts
-└── web/index.html               # 响应式看板（PC + 手机）
+│   │   ├── fluctuation.ts       # 波动分析（均线/标准差带/Z-score 异常）
+│   │   └── pipeline.ts          # 分维度切周期 → 归因+波动 → 报告
+│   ├── importer/
+│   │   ├── parseCsv.ts          # 零依赖 CSV 解析
+│   │   └── csv.ts               # 别名容错映射 + 平台自动识别
+│   ├── collectors/              # 第二期：三平台官方只读 API 采集器（stub）
+│   │   ├── meta.ts  google.ts  tiktok.ts
+│   ├── analyze.ts               # 入口：CSV → 报告 → web/data.js
+│   └── demo.ts                  # 纯代码演示
+├── samples/                     # 示例 CSV（Meta / Google 导出格式）
+└── web/index.html               # 响应式看板（PC + 手机，零依赖 SVG 图表）
 ```
 
 ## 落地路线

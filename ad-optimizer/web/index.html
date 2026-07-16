@@ -6,68 +6,123 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ad Optimizer · 广告波动对比看板</title>
   <style>
-    :root { --bg:#0f1420; --card:#1a2233; --ink:#e6ecf5; --muted:#8b97ad; --up:#ff6b6b; --down:#4dd08a; --line:#5b8def; }
-    * { box-sizing: border-box; }
-    body { margin:0; font-family: system-ui, -apple-system, "PingFang SC", sans-serif; background:var(--bg); color:var(--ink); }
+    :root { --bg:#0f1420; --card:#1a2233; --ink:#e6ecf5; --muted:#8b97ad; --up:#ff6b6b; --down:#4dd08a; --line:#5b8def; --band:rgba(91,141,239,.15); }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,"PingFang SC",sans-serif; background:var(--bg); color:var(--ink); }
     header { padding:16px 20px; font-weight:600; font-size:18px; border-bottom:1px solid #26304a; }
     .controls { display:flex; flex-wrap:wrap; gap:10px; padding:14px 20px; }
     .controls label { display:flex; flex-direction:column; font-size:12px; color:var(--muted); gap:4px; }
-    select, input { background:var(--card); color:var(--ink); border:1px solid #2c374f; border-radius:8px; padding:8px 10px; font-size:14px; }
+    select { background:var(--card); color:var(--ink); border:1px solid #2c374f; border-radius:8px; padding:8px 10px; font-size:14px; min-width:160px; }
     main { display:grid; grid-template-columns:1fr; gap:16px; padding:0 20px 24px; }
-    /* PC 上左右分栏，手机上纵向堆叠 */
-    @media (min-width:820px){ main { grid-template-columns:2fr 1fr; } }
+    @media (min-width:820px){ main { grid-template-columns:2fr 1fr; } } /* PC 分栏 / 手机堆叠 */
     .card { background:var(--card); border-radius:12px; padding:16px; }
     .card h3 { margin:0 0 12px; font-size:14px; color:var(--muted); font-weight:600; }
-    #chart { width:100%; height:320px; }
-    .concl { font-size:14px; line-height:1.7; }
-    .concl b { color:var(--up); }
-    .recs li { margin-bottom:8px; font-size:13px; color:var(--ink); }
+    svg { width:100%; height:auto; display:block; }
     .kpis { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
-    .kpi { flex:1; min-width:90px; background:#141b29; border-radius:8px; padding:10px; }
+    .kpi { flex:1; min-width:88px; background:#141b29; border-radius:8px; padding:10px; }
     .kpi span { display:block; font-size:11px; color:var(--muted); }
-    .kpi b { font-size:18px; }
+    .kpi b { font-size:16px; }
+    .concl { font-size:14px; line-height:1.7; }
+    .concl .up { color:var(--up); } .concl .down { color:var(--down); }
+    .recs { margin:10px 0 0; padding-left:18px; } .recs li { margin-bottom:8px; font-size:13px; }
+    .empty { color:var(--muted); padding:40px; text-align:center; }
   </style>
 </head>
 <body>
   <header>📊 Ad Optimizer · 广告周期波动对比</header>
-
-  <!-- 需求3：维度/颗粒度可选，和在跑广告对齐 -->
   <div class="controls">
-    <label>平台<select><option>Meta</option><option>Google</option><option>TikTok</option><option>全部</option></select></label>
-    <label>颗粒度<select><option>广告系列 Campaign</option><option>广告组 AdSet/AdGroup</option><option>广告 Ad</option><option>账户</option></select></label>
-    <label>拆分维度<select><option>地区 Region</option><option>版位 Placement</option><option>无</option></select></label>
-    <label>指标<select><option>CPC</option><option>CPM</option><option>CTR</option><option>ROAS</option></select></label>
-    <label>对比区间<input type="text" value="本周期 vs 上周期" readonly /></label>
+    <label>维度（平台/广告/地区）<select id="dim"></select></label>
+    <label>指标<select id="metric">
+      <option value="cpc">CPC 单次点击成本</option>
+      <option value="cpm">CPM 千次展示成本</option>
+      <option value="ctr">CTR 点击率</option>
+      <option value="roas">ROAS 花费回报</option>
+    </select></label>
   </div>
-
   <main>
     <section class="card">
-      <h3>趋势 + 7日均线 ±2σ 波动带（异常点标红）</h3>
-      <div class="kpis">
-        <div class="kpi"><span>CPM</span><b>¥42 → ¥55</b></div>
-        <div class="kpi"><span>CTR</span><b>2.1% → 1.6%</b></div>
-        <div class="kpi"><span>CPC</span><b style="color:var(--up)">¥2.0 → ¥3.4</b></div>
-      </div>
-      <!-- 需求4：图表容器，实际接 ECharts；这里先给占位说明 -->
-      <div id="chart" style="display:flex;align-items:center;justify-content:center;color:var(--muted);border:1px dashed #2c374f;border-radius:8px;">
-        接入 ECharts 后此处渲染折线图 + 波动带 + 异常标红（数据来自 attribution / fluctuation 引擎）
-      </div>
+      <h3 id="chartTitle">趋势 + 7日均线 ±2σ 波动带（异常点标红）</h3>
+      <div class="kpis" id="kpis"></div>
+      <div id="chart"></div>
     </section>
-
-    <!-- 需求4：对比结论 + 调整建议（由 attribution.ts 引擎生成） -->
     <section class="card">
       <h3>对比结论与调整建议</h3>
-      <p class="concl">
-        📍 华东区，本周期对比上周期：CPC <b>+70%</b>。<br />
-        竞价(CPM +31%)贡献约 <b>48%</b>，素材点击率(CTR −24%)贡献约 <b>52%</b>。<br />
-        主因：<b>素材点击率下滑（素材疲劳）</b>。
-      </p>
-      <ul class="recs">
-        <li>① 素材已疲劳：优先更换/迭代创意，提升 CTR 以拉低 CPC。</li>
-        <li>② 检查受众是否过窄导致重复曝光（frequency 过高）。</li>
-        <li>③ 竞价同时变贵：可错峰投放或放宽受众降低 CPM。</li>
-      </ul>
+      <div class="concl" id="conclusion"></div>
+      <ul class="recs" id="recs"></ul>
     </section>
   </main>
+
+  <script src="data.js"></script>
+  <script>
+    const DATA = window.__AD_DATA__ || { dimensions: [] };
+    const $ = (id) => document.getElementById(id);
+
+    function initDims() {
+      const sel = $('dim');
+      if (!DATA.dimensions.length) { document.querySelector('main').innerHTML = '<div class="empty">暂无数据。先运行 <code>npx ts-node src/analyze.ts</code> 生成 web/data.js</div>'; return; }
+      DATA.dimensions.forEach((d, i) => {
+        const o = document.createElement('option');
+        o.value = i; o.textContent = d.key + `  (CPC ${fmtPct(d.attribution.change.cpcPct)})`;
+        sel.appendChild(o);
+      });
+      sel.onchange = render; $('metric').onchange = render;
+      render();
+    }
+
+    const fmtPct = (n) => (n >= 0 ? '+' : '') + (n * 100).toFixed(0) + '%';
+    const fmtVal = (m, v) => m === 'ctr' ? (v * 100).toFixed(2) + '%' : (m === 'roas' ? v.toFixed(2) : '¥' + v.toFixed(2));
+
+    function render() {
+      const d = DATA.dimensions[+$('dim').value];
+      const m = $('metric').value;
+      $('chartTitle').textContent = `${d.key} · ${m.toUpperCase()} 趋势 + 7日均线 ±2σ（异常标红）`;
+      renderKpis(d); renderChart(d.series[m], m); renderConclusion(d);
+    }
+
+    function renderKpis(d) {
+      const a = d.attribution;
+      const cls = (n) => n > 0 ? 'up' : (n < 0 ? 'down' : '');
+      $('kpis').innerHTML = [
+        ['CPM', `¥${a.baseline.cpm.toFixed(1)} → ¥${a.current.cpm.toFixed(1)}`, a.change.cpmPct],
+        ['CTR', `${(a.baseline.ctr*100).toFixed(2)}% → ${(a.current.ctr*100).toFixed(2)}%`, a.change.ctrPct],
+        ['CPC', `¥${a.baseline.cpc.toFixed(2)} → ¥${a.current.cpc.toFixed(2)}`, a.change.cpcPct],
+      ].map(([k,v,c]) => `<div class="kpi"><span>${k} <b class="${cls(c)}" style="font-size:11px">${fmtPct(c)}</b></span><b>${v}</b></div>`).join('');
+    }
+
+    // 零依赖 SVG 折线图：波动带 + 均线 + 数据线 + 异常红点
+    function renderChart(points, m) {
+      if (!points || !points.length) { $('chart').innerHTML = ''; return; }
+      const W = 640, H = 320, pad = { l: 48, r: 12, t: 12, b: 28 };
+      const xs = points.map((_, i) => i);
+      const allVals = points.flatMap(p => [p.value, p.upper, p.lower]).filter(v => isFinite(v));
+      let min = Math.min(...allVals), max = Math.max(...allVals);
+      if (min === max) { min -= 1; max += 1; } const padY = (max - min) * 0.1; min -= padY; max += padY;
+      const X = (i) => pad.l + (i / Math.max(1, points.length - 1)) * (W - pad.l - pad.r);
+      const Y = (v) => pad.t + (1 - (v - min) / (max - min)) * (H - pad.t - pad.b);
+      const line = (key) => points.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(p[key]).toFixed(1)}`).join(' ');
+      const band = points.map((p, i) => `${X(i).toFixed(1)},${Y(p.upper).toFixed(1)}`).join(' ') + ' ' +
+                   points.map((p, i) => `${X(i).toFixed(1)},${Y(p.lower).toFixed(1)}`).reverse().join(' ');
+      const ticks = [min, (min+max)/2, max].map(v => `<text x="6" y="${Y(v)+4}" fill="#8b97ad" font-size="11">${fmtVal(m, v)}</text><line x1="${pad.l}" y1="${Y(v)}" x2="${W-pad.r}" y2="${Y(v)}" stroke="#26304a"/>`).join('');
+      const xlabels = points.map((p, i) => (i % Math.ceil(points.length/6) === 0 || i === points.length-1) ? `<text x="${X(i)}" y="${H-8}" fill="#8b97ad" font-size="10" text-anchor="middle">${p.date.slice(5)}</text>` : '').join('');
+      const dots = points.map((p, i) => p.isAnomaly ? `<circle cx="${X(i)}" cy="${Y(p.value)}" r="4.5" fill="#ff6b6b"><title>${p.date} 异常 z=${p.z.toFixed(1)}</title></circle>` : `<circle cx="${X(i)}" cy="${Y(p.value)}" r="2.5" fill="#5b8def"/>`).join('');
+      $('chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img">
+        ${ticks}
+        <polygon points="${band}" fill="var(--band)"/>
+        <path d="${line('ma')}" fill="none" stroke="#8b97ad" stroke-dasharray="4 3" stroke-width="1.5"/>
+        <path d="${line('value')}" fill="none" stroke="#5b8def" stroke-width="2"/>
+        ${dots}${xlabels}
+      </svg>`;
+    }
+
+    function renderConclusion(d) {
+      const a = d.attribution;
+      $('conclusion').innerHTML = a.conclusion
+        .replace(/(\+\d+%)/g, '<span class="up">$1</span>')
+        .replace(/(-\d+%)/g, '<span class="down">$1</span>');
+      $('recs').innerHTML = a.recommendations.map(r => `<li>${r}</li>`).join('');
+    }
+
+    initDims();
+  </script>
 </body>
 </html>

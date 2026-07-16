@@ -89,10 +89,12 @@ export function attributeCpcChange(
   else mainDriver = cpmShare > ctrShare ? 'cpm' : 'ctr';
 
   const fmt = (n: number) => `${n >= 0 ? '+' : ''}${(n * 100).toFixed(0)}%`;
-  const conclusion =
-    `CPC ${fmt(change.cpcPct)}：其中竞价(CPM ${fmt(change.cpmPct)})贡献约 ${(cpmShare * 100).toFixed(0)}%，` +
-    `素材点击率(CTR ${fmt(change.ctrPct)})贡献约 ${(ctrShare * 100).toFixed(0)}%。` +
-    `主因是${mainDriver === 'cpm' ? '竞价环境变贵' : mainDriver === 'ctr' ? '素材点击率下滑（素材疲劳）' : '竞价与素材双重因素'}。`;
+  const stable = Math.abs(change.cpcPct) < 0.03; // CPC 变化 <3% 视为基本持平
+  const conclusion = stable
+    ? `CPC ${fmt(change.cpcPct)}，基本持平，无显著波动，维持当前投放即可。`
+    : `CPC ${fmt(change.cpcPct)}：其中竞价(CPM ${fmt(change.cpmPct)})贡献约 ${(cpmShare * 100).toFixed(0)}%，` +
+      `素材点击率(CTR ${fmt(change.ctrPct)})贡献约 ${(ctrShare * 100).toFixed(0)}%。` +
+      `主因是${mainDriver === 'cpm' ? '竞价环境变贵' : mainDriver === 'ctr' ? '素材点击率下滑（素材疲劳）' : '竞价与素材双重因素'}。`;
 
   return {
     baseline,
