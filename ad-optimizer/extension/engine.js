@@ -206,8 +206,19 @@ export function buildReport(rows, config = {}) {
     const cur = sorted.filter((r) => !baseDates.has(r.date));
     const attribution = attributeCpcChange(base, cur);
     const hasRevenue = [...base, ...cur].some((r) => r.revenue > 0);
+    const contentId = sorted[0].contentId;
+    const region = sorted[0].region;
+    const curDays = new Set(cur.map((r) => r.date)).size || 1;
+    const curSpend = cur.reduce((s, r) => s + r.spend, 0);
     const roi = hasRevenue
-      ? attributeRoiChange(base, cur, { region: sorted[0].region, ...(config[key] || config.default || {}) })
+      ? attributeRoiChange(base, cur, {
+          region,
+          currentRoas: aggregate(cur).roas,
+          avgDailySpend: curSpend / curDays,
+          dailyBudget: config.budgets?.[contentId],   // 单个广告/内容ID 的日预算
+          targetRoas: config.targetRoas,
+          tzOffset: regionOffset(region),
+        })
       : null;
     const series = {
       cpc: analyzeSeries(sorted.map((r) => ({ date: r.date, value: r.cpc }))),
@@ -222,6 +233,19 @@ export function buildReport(rows, config = {}) {
     ? a.roi.change.roasPct - b.roi.change.roasPct
     : b.attribution.change.cpcPct - a.attribution.change.cpcPct);
   return { generatedAt: new Date().toISOString(), dimensions };
+}
+
+// ---------- 区域时区（UTC 偏移，忽略夏令时，够用于排期指引；可自行扩充）----------
+const REGION_TZ = {
+  '华东': 8, '华南': 8, '华北': 8, '华中': 8, '西南': 8, '西北': 8, '东北': 8, '全国': 8, '中国': 8,
+  '美东': -5, '美西': -8, '美国': -5, '英国': 0, '德国': 1, '法国': 1, '欧洲': 1,
+  '日本': 9, '韩国': 9, '新加坡': 8, '东南亚': 7, '印度': 5.5, '中东': 3,
+  '巴西': -3, '澳大利亚': 10, '澳洲': 10,
+};
+export function regionOffset(region) {
+  if (!region) return null;
+  for (const k in REGION_TZ) if (region.includes(k)) return REGION_TZ[k];
+  return null;
 }
 
 // ---------- 回收(ROI) 归因引擎 ----------
@@ -259,7 +283,7 @@ export function attributeRoiChange(baselineRows, currentRows, opts = {}) {
       `转化侧贡献约 ${(share(convSide) * 100).toFixed(0)}%（CVR ${fmt(change.cvrPct)} / 客单价 ${fmt(change.aovPct)}）。` +
       `主因是${label}。判定：${isCpmVsCpc}。`;
 
-  return { baseline: b, current: c, change, contrib, costShare: share(costSide), convShare: share(convSide), mainDriver: main, conclusion, recommendations: recommendRoi(main, change, opts) };
+  return { baseline: b, current: c, change, contrib, costShare: share(costSide), convShare: share(convSide), mainDriver: main, avgDailySpend: opts.avgDailySpend, dailyBudget: opts.dailyBudget, conclusion, recommendations: recommendRoi(main, change, opts) };
 }
 
 // 结合目标预算 / 投放区域时间给建议（opts 缺省时给纯指标建议）
@@ -273,19 +297,25 @@ function recommendRoi(main, change, opts = {}) {
     if (main === 'cvr') r.push('回收下滑主因是转化率(CVR)：问题在落地页/受众匹配，而非流量成本，重点查转化链路。');
     if (main === 'aov') r.push('回收下滑主因是客单价下降：检查促销力度、货品结构或转化事件口径。');
   }
-  // 结合目标预算与区域时间（提供了才触发）
-  if (opts.targetRoas != null) {
-    const cur = change.roasPct; // 仅示意；真实达标判断用绝对 ROAS，见 opts.currentRoas
-    if (opts.currentRoas != null) {
-      if (opts.currentRoas < opts.targetRoas) r.push(`当前回收 ${opts.currentRoas.toFixed(2)} 低于目标 ${opts.targetRoas}：建议减少该广告预算，转投已达标的广告/区域。`);
-      else r.push(`当前回收 ${opts.currentRoas.toFixed(2)} 已达目标 ${opts.targetRoas}：可小步加预算放量，观察回收是否保持。`);
-    }
+  // 结合目标回收（提供了才触发）
+  if (opts.targetRoas != null && opts.currentRoas != null) {
+    if (opts.currentRoas < opts.targetRoas) r.push(`当前回收 ${opts.currentRoas.toFixed(2)} 低于目标 ${opts.targetRoas}：建议减少该广告预算，转投已达标的广告。`);
+    else r.push(`当前回收 ${opts.currentRoas.toFixed(2)} 已达目标 ${opts.targetRoas}：可小步加预算放量，观察回收是否保持。`);
   }
+  // 单个广告日预算配速（花费 vs 目标日预算）
   if (opts.dailyBudget != null && opts.avgDailySpend != null) {
     const pace = opts.avgDailySpend / opts.dailyBudget;
-    if (pace > 1.1) r.push(`日均花费已超目标预算 ${(pace * 100 - 100).toFixed(0)}%，注意控预算或该区域竞价过热。`);
-    else if (pace < 0.7) r.push(`日均花费仅为目标预算的 ${(pace * 100).toFixed(0)}%，投放不足，可放宽出价/受众或延长投放时段。`);
+    if (pace > 1.1) r.push(`日均花费 ¥${opts.avgDailySpend.toFixed(0)} 超目标日预算 ¥${opts.dailyBudget} 约 ${(pace * 100 - 100).toFixed(0)}%${down ? '，而回收在降 → 优先压预算止损' : '，注意是否透支预算/竞价过热'}。`);
+    else if (pace < 0.7) r.push(`日均花费 ¥${opts.avgDailySpend.toFixed(0)} 仅为目标日预算 ¥${opts.dailyBudget} 的 ${(pace * 100).toFixed(0)}%${down ? '' : '，且回收尚可 → 可放宽出价/受众或延长投放时段放量'}。`);
+    else r.push(`日均花费 ¥${opts.avgDailySpend.toFixed(0)} 与目标日预算 ¥${opts.dailyBudget} 基本匹配，配速正常。`);
   }
-  if (opts.bestHours) r.push(`${opts.region ?? '该区域'}历史回收最高时段为 ${opts.bestHours}：预算向该时段集中（分时/dayparting）。`);
+  // 区域时区差异：按当地时间排期与对齐看数
+  if (opts.tzOffset != null) {
+    const localOff = -new Date().getTimezoneOffset() / 60;
+    const diff = opts.tzOffset - localOff;
+    const sign = opts.tzOffset >= 0 ? `+${opts.tzOffset}` : `${opts.tzOffset}`;
+    const diffTxt = diff === 0 ? '与你本地同时区' : `与你本地差 ${diff > 0 ? '+' : ''}${diff} 小时`;
+    r.push(`${opts.region ?? '该区域'}时区 UTC${sign}（${diffTxt}）：投放时段与看当日数据请按当地时间对齐，避免用你本地的"今天"误判该区域波动。`);
+  }
   return r;
 }

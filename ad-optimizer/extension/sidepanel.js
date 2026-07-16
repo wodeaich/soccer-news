@@ -1,10 +1,12 @@
 import { importCsv, buildReport } from './engine.js';
-import { getAllRows, putRows, clearRows, migrateLegacy } from './store.js';
+import { getAllRows, putRows, clearRows, migrateLegacy, getConfig, setConfig } from './store.js';
 
 const $ = (id) => document.getElementById(id);
 
 let rows = [];   // 当前内存中的全部明细（从 IndexedDB 载入）
 let report = { dimensions: [] };
+let config = { budgets: {} };  // { budgets: { 内容ID: 日预算 }, targetRoas }
+let currentKey = null;         // 当前选中维度，rebuild 后保持不变
 
 async function reload() { rows = await getAllRows(); }
 
@@ -49,7 +51,7 @@ async function importBackup(file) {
 }
 
 function rebuild() {
-  report = buildReport(rows);
+  report = buildReport(rows, config);
   const has = report.dimensions.length > 0;
   $('controls').style.display = has ? 'block' : 'none';
   if (!has) {
@@ -59,8 +61,13 @@ function rebuild() {
     return;
   }
   const sel = $('dim');
-  sel.innerHTML = report.dimensions.map((d, i) =>
-    `<option value="${i}">${d.key} (CPC ${fmtPct(d.attribution.change.cpcPct)})</option>`).join('');
+  sel.innerHTML = report.dimensions.map((d, i) => {
+    const tag = d.roi ? `回收 ${fmtPct(d.roi.change.roasPct)}` : `CPC ${fmtPct(d.attribution.change.cpcPct)}`;
+    return `<option value="${i}">${d.key} (${tag})</option>`;
+  }).join('');
+  // 保持之前选中的维度
+  const keep = report.dimensions.findIndex((d) => d.key === currentKey);
+  sel.value = keep >= 0 ? keep : 0;
   render();
 }
 
@@ -83,6 +90,7 @@ const fmtVal = (m, v) => m === 'ctr' ? (v * 100).toFixed(2) + '%' : (m === 'roas
 function render() {
   const d = report.dimensions[+$('dim').value];
   if (!d) return;
+  currentKey = d.key;
   const m = $('metric').value;
   const a = d.attribution;
   const cls = (n) => n > 0 ? 'up' : (n < 0 ? 'down' : '');
@@ -104,11 +112,30 @@ function render() {
        </div>
        <div class="concl">${hl(d.roi.conclusion)}</div><ul class="recs">${recsHtml(d.roi.recommendations)}</ul></div>` : '';
 
+  // 单个广告日预算输入（驱动配速建议）
+  const budgetCard = d.contentId ? `<div class="card"><h3>🎯 该广告日预算（配速建议）</h3>
+       <div style="display:flex;align-items:center;gap:8px">¥
+         <input id="budgetInput" type="number" min="0" step="10" placeholder="填该内容ID的日预算"
+           value="${config.budgets?.[d.contentId] ?? ''}"
+           style="flex:1;background:#141b29;color:#e6ecf5;border:1px solid #2c374f;border-radius:8px;padding:8px;font-size:13px"/>
+       </div>
+       <div class="meta" style="margin-top:6px">当前期日均花费 ¥${d.roi?.avgDailySpend != null ? d.roi.avgDailySpend.toFixed(0) : '—'}</div></div>` : '';
+
   $('panel').innerHTML =
     `<div class="card"><h3>${d.key} · ${m.toUpperCase()} 趋势 + 7日均线 ±2σ</h3>
        <div class="kpis">${kpis}</div>${chartSvg(d.series[m], m)}</div>
-     ${roiCard}
+     ${budgetCard}${roiCard}
      <div class="card"><h3>成本侧：CPC 归因与建议</h3><div class="concl">${hl(a.conclusion)}</div><ul class="recs">${recsHtml(a.recommendations)}</ul></div>`;
+
+  const bi = $('budgetInput');
+  if (bi) bi.onchange = async () => {
+    config.budgets = config.budgets || {};
+    const v = parseFloat(bi.value);
+    if (Number.isFinite(v) && v > 0) config.budgets[d.contentId] = v;
+    else delete config.budgets[d.contentId];
+    await setConfig(config);
+    rebuild(); // 用新预算重算建议，保持当前维度
+  };
 }
 
 // 零依赖 SVG 折线图：波动带 + 均线 + 数据线 + 异常红点
@@ -156,6 +183,7 @@ $('clear').onclick = async () => {
 (async () => {
   await migrateLegacy();     // 旧 chrome.storage 数据一次性迁入 IndexedDB
   await reload();
+  config = (await getConfig()) || { budgets: {} };
   baseStat();
   rebuild();
 })();

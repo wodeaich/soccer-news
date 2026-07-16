@@ -6,7 +6,8 @@
 
 const DB_NAME = 'adOptimizer';
 const STORE = 'rows';
-const VERSION = 1;
+const CONFIG = 'config';
+const VERSION = 2;
 
 /** 去重主键：同一 平台|广告|内容ID|地区|日期 只保留一条（新导入覆盖旧的） */
 export const rowKey = (r) => `${r.platform}|${r.campaignName}|${r.contentId ?? ''}|${r.region ?? ''}|${r.date}`;
@@ -20,6 +21,9 @@ function open() {
         const os = db.createObjectStore(STORE, { keyPath: '_k' });
         os.createIndex('date', 'date');
         os.createIndex('platform', 'platform');
+      }
+      if (!db.objectStoreNames.contains(CONFIG)) {
+        db.createObjectStore(CONFIG, { keyPath: 'k' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -59,6 +63,29 @@ export async function clearRows() {
   return new Promise((resolve, reject) => {
     const t = db.transaction(STORE, 'readwrite');
     t.objectStore(STORE).clear();
+    t.oncomplete = () => { db.close(); resolve(); };
+    t.onerror = () => { db.close(); reject(t.error); };
+  });
+}
+
+/** 读取配置（如每条广告的日预算、目标回收） */
+export async function getConfig(k = 'config') {
+  const db = await open();
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(CONFIG, 'readonly');
+    const req = t.objectStore(CONFIG).get(k);
+    req.onsuccess = () => resolve(req.result?.v ?? null);
+    req.onerror = () => reject(req.error);
+    t.oncomplete = () => db.close();
+  });
+}
+
+/** 写入配置 */
+export async function setConfig(v, k = 'config') {
+  const db = await open();
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(CONFIG, 'readwrite');
+    t.objectStore(CONFIG).put({ k, v });
     t.oncomplete = () => { db.close(); resolve(); };
     t.onerror = () => { db.close(); reject(t.error); };
   });
