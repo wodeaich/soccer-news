@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <!-- 需求2：适配 PC + 手机端浏览器 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ad Optimizer · 广告波动对比看板</title>
+  <style>
+    :root { --bg:#0f1420; --card:#1a2233; --ink:#e6ecf5; --muted:#8b97ad; --up:#ff6b6b; --down:#4dd08a; --line:#5b8def; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, "PingFang SC", sans-serif; background:var(--bg); color:var(--ink); }
+    header { padding:16px 20px; font-weight:600; font-size:18px; border-bottom:1px solid #26304a; }
+    .controls { display:flex; flex-wrap:wrap; gap:10px; padding:14px 20px; }
+    .controls label { display:flex; flex-direction:column; font-size:12px; color:var(--muted); gap:4px; }
+    select, input { background:var(--card); color:var(--ink); border:1px solid #2c374f; border-radius:8px; padding:8px 10px; font-size:14px; }
+    main { display:grid; grid-template-columns:1fr; gap:16px; padding:0 20px 24px; }
+    /* PC 上左右分栏，手机上纵向堆叠 */
+    @media (min-width:820px){ main { grid-template-columns:2fr 1fr; } }
+    .card { background:var(--card); border-radius:12px; padding:16px; }
+    .card h3 { margin:0 0 12px; font-size:14px; color:var(--muted); font-weight:600; }
+    #chart { width:100%; height:320px; }
+    .concl { font-size:14px; line-height:1.7; }
+    .concl b { color:var(--up); }
+    .recs li { margin-bottom:8px; font-size:13px; color:var(--ink); }
+    .kpis { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    .kpi { flex:1; min-width:90px; background:#141b29; border-radius:8px; padding:10px; }
+    .kpi span { display:block; font-size:11px; color:var(--muted); }
+    .kpi b { font-size:18px; }
+  </style>
+</head>
+<body>
+  <header>📊 Ad Optimizer · 广告周期波动对比</header>
+
+  <!-- 需求3：维度/颗粒度可选，和在跑广告对齐 -->
+  <div class="controls">
+    <label>平台<select><option>Meta</option><option>Google</option><option>TikTok</option><option>全部</option></select></label>
+    <label>颗粒度<select><option>广告系列 Campaign</option><option>广告组 AdSet/AdGroup</option><option>广告 Ad</option><option>账户</option></select></label>
+    <label>拆分维度<select><option>地区 Region</option><option>版位 Placement</option><option>无</option></select></label>
+    <label>指标<select><option>CPC</option><option>CPM</option><option>CTR</option><option>ROAS</option></select></label>
+    <label>对比区间<input type="text" value="本周期 vs 上周期" readonly /></label>
+  </div>
+
+  <main>
+    <section class="card">
+      <h3>趋势 + 7日均线 ±2σ 波动带（异常点标红）</h3>
+      <div class="kpis">
+        <div class="kpi"><span>CPM</span><b>¥42 → ¥55</b></div>
+        <div class="kpi"><span>CTR</span><b>2.1% → 1.6%</b></div>
+        <div class="kpi"><span>CPC</span><b style="color:var(--up)">¥2.0 → ¥3.4</b></div>
+      </div>
+      <!-- 需求4：图表容器，实际接 ECharts；这里先给占位说明 -->
+      <div id="chart" style="display:flex;align-items:center;justify-content:center;color:var(--muted);border:1px dashed #2c374f;border-radius:8px;">
+        接入 ECharts 后此处渲染折线图 + 波动带 + 异常标红（数据来自 attribution / fluctuation 引擎）
+      </div>
+    </section>
+
+    <!-- 需求4：对比结论 + 调整建议（由 attribution.ts 引擎生成） -->
+    <section class="card">
+      <h3>对比结论与调整建议</h3>
+      <p class="concl">
+        📍 华东区，本周期对比上周期：CPC <b>+70%</b>。<br />
+        竞价(CPM +31%)贡献约 <b>48%</b>，素材点击率(CTR −24%)贡献约 <b>52%</b>。<br />
+        主因：<b>素材点击率下滑（素材疲劳）</b>。
+      </p>
+      <ul class="recs">
+        <li>① 素材已疲劳：优先更换/迭代创意，提升 CTR 以拉低 CPC。</li>
+        <li>② 检查受众是否过窄导致重复曝光（frequency 过高）。</li>
+        <li>③ 竞价同时变贵：可错峰投放或放宽受众降低 CPM。</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
